@@ -1,3 +1,4 @@
+require "aws-sdk-v1"
 module S3
 
   # Class responsible for handling connections to amazon hosts
@@ -173,7 +174,7 @@ module S3
       http
     end
 
-    def send_request(host, request, skip_authorization = false)
+    def send_request_old(host, request, skip_authorization = false)
       response = http(host).start do |http|
         host = http.address
 
@@ -204,19 +205,38 @@ module S3
       end
     end
 
+    def send_request(host, request, skip_authorization = false)
+      http_method = request.method      
+      ENV['AWS_ACCESS_KEY_ID']=access_key_id
+      ENV['AWS_SECRET_ACCESS_KEY']=secret_access_key
+      ENV['AWS_REGION']='cn-north-1'
+      signer = AWS::Core::Signers::Version4.new(AWS::Core::CredentialProviders::DefaultProvider.new, 's3', 'cn-north-1')
+      
+      request = AWS::Core::Http::Request.new
+      request.http_method = http_method
+      # request.http_method = "GET"
+      request.host = host
+      signer.sign_request(request)
+      puts request.headers["Authorization"]
+      handler = AWS::Core::Http::NetHttpHandler.new
+      response = AWS::Core::Http::Response.new
+      handler.handle(request, response)
+      handle_response(response)
+    end
+
     def handle_response(response)
-      case response.code.to_i
+      case response.status.to_i
       when 200...300
         response
       when 300...600
         if response.body.nil? || response.body.empty?
           raise Error::ResponseError.new(nil, response)
         else
-          code, message = parse_error(response.body)
-          raise Error::ResponseError.exception(code).new(message, response)
+          status, message = parse_error(response.body)
+          raise Error::ResponseError.exception(status).new(message, response)
         end
       else
-        raise(ConnectionError.new(response, "Unknown response code: #{response.code}"))
+        raise(ConnectionError.new(response, "Unknown response code: #{response.status}"))
       end
       response
     end

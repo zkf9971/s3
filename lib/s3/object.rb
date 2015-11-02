@@ -242,17 +242,17 @@ module S3
     end
 
     def parse_headers(response)
-      @metadata = response.to_hash.select { |k, v| k.to_s.start_with?("x-amz-meta") }
-      self.etag = response["etag"] if response.key?("etag")
-      self.content_type = response["content-type"] if response.key?("content-type")
-      self.content_disposition = response["content-disposition"] if response.key?("content-disposition")
-      self.cache_control = response["cache-control"] if response.key?("cache-control")
-      self.content_encoding = response["content-encoding"] if response.key?("content-encoding")
-      self.last_modified = response["last-modified"] if response.key?("last-modified")
-      if response.key?("content-range")
+      @metadata = response.headers.to_hash.select { |k, v| k.to_s.start_with?("x-amz-meta") }
+      self.etag = response["etag"] if response.headers.key?("etag")
+      self.content_type = response.headers["content-type"] if response.headers.key?("content-type")
+      self.content_disposition = response.headers["content-disposition"] if response.headers.key?("content-disposition")
+      self.cache_control = response.headers["cache-control"] if response.headers.key?("cache-control")
+      self.content_encoding = response.headers["content-encoding"] if response.headers.key?("content-encoding")
+      self.last_modified = response.headers["last-modified"] if response.headers.key?("last-modified")
+      if response.headers.key?("content-range")
         self.size = response["content-range"].sub(/[^\/]+\//, "").to_i
       else
-        self.size = response["content-length"]
+        self.size = response.headers["content-length"]
         if body = response.body
           self.content = body
         end
